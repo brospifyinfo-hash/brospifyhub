@@ -6,11 +6,12 @@ import {
   Trophy, Save, Loader2, ExternalLink, FileText, DollarSign,
   Link as LinkIcon, Eye
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
 import type { Channel, WinningProductSettings } from "@/types/database";
+import { cn } from "@/lib/utils";
 
 export function WinningProductEditor() {
   const [channel, setChannel] = useState<Channel | null>(null);
@@ -96,12 +97,20 @@ export function WinningProductEditor() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" asChild>
-              <a href="/channels/winning-product" target="_blank">
-                <Eye className="w-4 h-4 mr-2" />
-                Vorschau
-              </a>
-            </Button>
+            <a
+              href="/channels/winning-product"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(
+                buttonVariants({
+                  variant: "outline",
+                  className: "inline-flex items-center",
+                })
+              )}
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              Vorschau
+            </a>
             <Button 
               onClick={handleSave} 
               disabled={isSaving}

@@ -54,10 +54,13 @@ export function usePermissions() {
         },
         (payload) => {
           // Refresh permissions when roles change
-          if (permissions?.userId && 
-              (payload.new as any)?.user_id === permissions.userId ||
-              (payload.old as any)?.user_id === permissions.userId) {
-            clearPermissionCache(permissions.userId);
+          const userId = permissions?.userId;
+          if (
+            userId &&
+            (((payload.new as any)?.user_id === userId) ||
+              ((payload.old as any)?.user_id === userId))
+          ) {
+            clearPermissionCache(userId);
             fetchPermissions();
           }
         }

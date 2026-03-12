@@ -56,18 +56,25 @@ export function TicketList({ isAdmin, onSelectTicket, selectedTicketId }: Props)
       }
 
       const { data } = await query;
-      if (data) setTickets(data as TicketWithUser[]);
+      if (data) setTickets(data as unknown as TicketWithUser[]);
       setLoading(false);
     };
 
     fetchTickets();
 
-    const subscription = supabase
+    const channel = supabase
       .channel("tickets-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "tickets" }, fetchTickets)
-      .subscribe();
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tickets" },
+        fetchTickets
+      );
 
-    return () => { subscription.unsubscribe(); };
+    channel.subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
   }, [showArchived]);
 
   const filteredTickets = tickets.filter(ticket => {

@@ -34,6 +34,12 @@ export function SupportChat({ conversationId: initialConvId, userId: initialUser
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
+  const scrollToBottom = () => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  };
+
   if (convLoading) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
@@ -79,7 +85,7 @@ export function SupportChat({ conversationId: initialConvId, userId: initialUser
         .order("created_at", { ascending: true });
 
       if (data) {
-        setMessages(data as MessageWithSender[]);
+        setMessages(data as unknown as MessageWithSender[]);
         setTimeout(scrollToBottom, 100);
       }
     };
@@ -87,7 +93,7 @@ export function SupportChat({ conversationId: initialConvId, userId: initialUser
     fetchMessages();
 
     // Subscribe to new messages
-    const subscription = supabase
+    const channel = supabase
       .channel(`support-${conversationId}`)
       .on(
         "postgres_changes",
@@ -109,15 +115,19 @@ export function SupportChat({ conversationId: initialConvId, userId: initialUser
             .single();
 
           if (data) {
-            setMessages((prev) => [...prev, data as MessageWithSender]);
+            setMessages((prev) => [
+              ...prev,
+              data as unknown as MessageWithSender,
+            ]);
             setTimeout(scrollToBottom, 100);
           }
         }
-      )
-      .subscribe();
+      );
+
+    channel.subscribe();
 
     return () => {
-      subscription.unsubscribe();
+      channel.unsubscribe();
     };
   }, [conversationId]);
 

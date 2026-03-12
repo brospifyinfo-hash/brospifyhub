@@ -174,13 +174,20 @@ function ChannelListContent() {
 
     fetchData();
 
-    const subscription = supabase
+    const channel = supabase
       .channel("channels-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "channels" }, fetchData)
-      .on("postgres_changes", { event: "*", schema: "public", table: "channel_categories" }, fetchData)
-      .subscribe();
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "channel_categories" },
+        fetchData
+      );
 
-    return () => subscription.unsubscribe();
+    channel.subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
   }, []);
 
   const toggleCategory = (categoryId: string) => {

@@ -55,32 +55,42 @@ export function TicketView({ ticket, isAdmin, onBack }: Props) {
         .eq("ticket_id", ticket.id)
         .order("created_at", { ascending: true });
 
-      if (data) setMessages(data as MessageWithSender[]);
+      if (data) setMessages(data as unknown as MessageWithSender[]);
       setLoading(false);
     };
 
     fetchMessages();
 
-    const subscription = supabase
+    const channel = supabase
       .channel(`ticket-${ticket.id}`)
-      .on("postgres_changes", { 
-        event: "INSERT", 
-        schema: "public", 
-        table: "ticket_messages",
-        filter: `ticket_id=eq.${ticket.id}`
-      }, async (payload) => {
-        const { data: newMsg } = await supabase
-          .from("ticket_messages")
-          .select(`*, sender:users!sender_id(id, display_name, role)`)
-          .eq("id", payload.new.id)
-          .single();
-        if (newMsg) {
-          setMessages(prev => [...prev, newMsg as MessageWithSender]);
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "ticket_messages",
+          filter: `ticket_id=eq.${ticket.id}`,
+        },
+        async (payload) => {
+          const { data: newMsg } = await supabase
+            .from("ticket_messages")
+            .select(`*, sender:users!sender_id(id, display_name, role)`)
+            .eq("id", payload.new.id)
+            .single();
+          if (newMsg) {
+            setMessages((prev) => [
+              ...prev,
+              newMsg as unknown as MessageWithSender,
+            ]);
+          }
         }
-      })
-      .subscribe();
+      );
 
-    return () => { subscription.unsubscribe(); };
+    channel.subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
   }, [ticket.id]);
 
   useEffect(() => {

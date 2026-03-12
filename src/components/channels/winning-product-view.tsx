@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Trophy, Download, ExternalLink, CheckCircle, Star, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { createClient, apiFetch } from "@/lib/supabase/client";
 import type { Channel, WinningProductSettings } from "@/types/database";
+import { cn } from "@/lib/utils";
 
 interface Props {
   channel: Channel;
@@ -21,7 +22,7 @@ export function WinningProductView({ channel, userId: userIdProp, hasPurchased: 
   const [hasUpsell, setHasUpsell] = useState(initialUpsell ?? false);
   const [loading, setLoading] = useState(!userIdProp);
   const router = useRouter();
-  const settings = channel.settings as WinningProductSettings;
+  const settings = (channel.settings || {}) as unknown as WinningProductSettings;
 
   useEffect(() => {
     if (userIdProp) return;
@@ -186,19 +187,23 @@ export function WinningProductView({ channel, userId: userIdProp, hasPurchased: 
               
               {checkoutUrl ? (
                 <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Button 
-                    asChild 
-                    className={`w-full max-w-sm h-14 text-lg ${
-                      hasPurchased 
-                        ? "bg-purple-500 hover:bg-purple-600" 
-                        : "btn-primary"
-                    }`}
+                  <a
+                    href={checkoutUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(
+                      buttonVariants({
+                        className: `w-full max-w-sm h-14 text-lg ${
+                          hasPurchased
+                            ? "bg-purple-500 hover:bg-purple-600"
+                            : "btn-primary"
+                        }`,
+                      })
+                    )}
                   >
-                    <a href={checkoutUrl} target="_blank" rel="noopener noreferrer">
-                      {getButtonText()}
-                      <ExternalLink className="w-5 h-5 ml-2" />
-                    </a>
-                  </Button>
+                    {getButtonText()}
+                    <ExternalLink className="w-5 h-5 ml-2" />
+                  </a>
                 </motion.div>
               ) : (
                 <p className="text-sm text-muted-foreground">

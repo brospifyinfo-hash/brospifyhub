@@ -36,13 +36,16 @@ export function MemberCount() {
 
     fetchData();
 
-    const subscription = supabase
+    const channel = supabase
       .channel("member-count")
       .on("postgres_changes", { event: "*", schema: "public", table: "users" }, fetchData)
-      .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, fetchData)
-      .subscribe();
+      .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, fetchData);
 
-    return () => subscription.unsubscribe();
+    channel.subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
   }, []);
 
   const displayCount = (count ?? 0) + bonus;

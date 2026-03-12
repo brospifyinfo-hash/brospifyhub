@@ -149,9 +149,19 @@ export function MessageArea({ channelId }: MessageAreaProps) {
 
     fetchData();
 
-    const onMessageSent = (e: CustomEvent<{ channelId: string; message: Message; user: { id: string; role?: string; display_name?: string } | null }>) => {
+    const onMessageSent = (
+      e: CustomEvent<{
+        channelId: string;
+        message: Message;
+        user: { id: string; role?: string; display_name?: string } | null;
+      }>
+    ) => {
       if (e.detail.channelId !== channelId) return;
-      const newMsg: MessageWithUser = { ...e.detail.message, users: e.detail.user ?? undefined };
+      const user = e.detail.user as unknown as
+        | Pick<User, "id" | "role" | "display_name">
+        | null
+        | undefined;
+      const newMsg: MessageWithUser = { ...e.detail.message, users: user };
       setMessages((prev) => (prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]));
     };
     window.addEventListener("message-sent", onMessageSent as EventListener);
@@ -295,9 +305,12 @@ export function MessageArea({ channelId }: MessageAreaProps) {
         .eq("user_id", currentUserId)
         .eq("emoji", emoji);
     } else {
-      await supabase
+      await (supabase as any)
         .from("message_reactions")
-        .upsert({ message_id: messageId, user_id: currentUserId, emoji }, { onConflict: "message_id,user_id,emoji" });
+        .upsert(
+          { message_id: messageId, user_id: currentUserId, emoji },
+          { onConflict: "message_id,user_id,emoji" }
+        );
       
       try {
         const { incrementStat } = await import("@/lib/stats");
@@ -310,14 +323,14 @@ export function MessageArea({ channelId }: MessageAreaProps) {
 
   const loadReactions = async (messageId: string) => {
     const supabase = createClient();
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("message_reactions")
       .select("emoji, user_id")
       .eq("message_id", messageId);
     
     if (data) {
       const grouped: Record<string, { count: number; userReacted: boolean }> = {};
-      data.forEach(r => {
+      (data as Array<{ emoji: string; user_id: string }>).forEach((r) => {
         if (!grouped[r.emoji]) grouped[r.emoji] = { count: 0, userReacted: false };
         grouped[r.emoji].count++;
         if (r.user_id === currentUserId) grouped[r.emoji].userReacted = true;

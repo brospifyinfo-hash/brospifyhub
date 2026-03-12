@@ -7,7 +7,7 @@ import {
   Award, Gift, Tag, Coins, ExternalLink, Download, Lock, Crown,
   ArrowRight, CheckCircle, Clock, Shield, Heart, TrendingUp, Video
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import type {
   Product, ProductVariant, ProductPriceTier, VariantPriceLink,
@@ -75,12 +75,14 @@ export function ProductShowcase({ productSlug, productId, userId: userIdProp }: 
       productQuery = productQuery.eq("id", productId);
     }
 
-    const { data: productData } = await productQuery.single();
+    const { data: productDataRaw } = await productQuery.single();
 
-    if (!productData) {
+    if (!productDataRaw) {
       setLoading(false);
       return;
     }
+
+    const productData = productDataRaw as any;
 
     // Fetch variants
     const { data: variantsData } = await supabase
@@ -131,8 +133,8 @@ export function ProductShowcase({ productSlug, productId, userId: userIdProp }: 
       variants: variantsWithLinks,
       priceTiers: tiersData || [],
     });
-    setUserPurchases(purchasesData || []);
-    setUserCredits(userData?.credits || 0);
+    setUserPurchases((purchasesData || []) as UserProductPurchase[]);
+    setUserCredits((userData as any)?.credits || 0);
 
     // Auto-select first variant
     if (variantsWithLinks.length > 0) {
@@ -213,7 +215,7 @@ export function ProductShowcase({ productSlug, productId, userId: userIdProp }: 
 
     try {
       const url = new URL(link.checkout_url);
-      url.searchParams.set("uid", userId);
+      url.searchParams.set("uid", userId ?? "");
       url.searchParams.set("vid", selectedVariant);
       url.searchParams.set("tid", tierId);
       return url.toString();
@@ -237,7 +239,7 @@ export function ProductShowcase({ productSlug, productId, userId: userIdProp }: 
     setPurchasing(true);
 
     const supabase = createClient();
-    const { data, error } = await supabase.rpc("purchase_with_credits", {
+    const { data, error } = await (supabase as any).rpc("purchase_with_credits", {
       p_user_id: userId,
       p_product_id: product.id,
       p_variant_id: selectedVariant,
@@ -535,16 +537,18 @@ export function ProductShowcase({ productSlug, productId, userId: userIdProp }: 
                     {/* External Link Button */}
                     {checkoutUrl && (
                       <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                        <Button
-                          asChild
-                          className="w-full sm:w-auto h-12 px-6 text-white"
+                        <a
+                          href={checkoutUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={buttonVariants({
+                            className: "w-full sm:w-auto h-12 px-6 text-white",
+                          })}
                           style={{ backgroundColor: tier.button_color }}
                         >
-                          <a href={checkoutUrl} target="_blank" rel="noopener noreferrer">
-                            {tier.button_text}
-                            <ExternalLink className="w-4 h-4 ml-2" />
-                          </a>
-                        </Button>
+                          {tier.button_text}
+                          <ExternalLink className="w-4 h-4 ml-2" />
+                        </a>
                       </motion.div>
                     )}
 
