@@ -2,6 +2,8 @@ import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { MobileAdminNav } from "@/components/admin/mobile-admin-nav";
 import { AdminAuthReady } from "@/components/admin/admin-auth-ready";
 
+export const dynamic = "force-dynamic";
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <AdminAuthReady>

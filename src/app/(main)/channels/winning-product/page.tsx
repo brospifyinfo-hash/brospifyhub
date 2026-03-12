@@ -2,6 +2,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { WinningProductView } from "@/components/channels/winning-product-view";
 import type { Channel } from "@/types/database";
 
+export const dynamic = "force-dynamic";
+
 export default async function WinningProductPage() {
   const adminClient = createAdminClient();
   const { data: channel } = await adminClient

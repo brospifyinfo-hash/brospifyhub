@@ -3,6 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { DashboardContent } from "@/components/dashboard/dashboard-content";
 import type { User } from "@/types/database";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   try {
     const supabase = await createClient();

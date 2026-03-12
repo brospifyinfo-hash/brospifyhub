@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { ChannelContent } from "@/components/channel/channel-content";
 import type { Channel } from "@/types/database";
 
+export const dynamic = "force-dynamic";
+
 interface Props { params: Promise<{ channelId: string }>; }
 
 export default async function ChannelPage({ params }: Props) {

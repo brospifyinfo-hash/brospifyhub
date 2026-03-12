@@ -3,6 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { Package } from "lucide-react";
 import type { Product } from "@/types/database";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Produkte",
   description: "Alle verfügbaren Produkte im Überblick.",
