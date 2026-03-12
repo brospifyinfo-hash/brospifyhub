@@ -1,5 +1,5 @@
-import { TicketsPage } from "@/components/tickets/tickets-page";
+import { redirect } from "next/navigation";
 
 export default function AdminTicketsPage() {
-  return <TicketsPage isAdmin={true} />;
+  redirect("/admin/channels");
 }

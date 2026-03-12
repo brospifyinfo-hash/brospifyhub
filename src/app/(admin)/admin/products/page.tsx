@@ -1,9 +1,5 @@
-import { ProductManager } from "@/components/admin/product-manager";
+import { redirect } from "next/navigation";
 
-export default function ProductsPage() {
-  return <ProductManager />;
+export default function AdminProductsPage() {
+  redirect("/admin/channels");
 }
-
-export const metadata = {
-  title: "Produkt-Manager - Admin - Brospify Hub",
-};

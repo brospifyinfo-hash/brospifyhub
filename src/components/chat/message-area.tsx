@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Download, Copy, Check, ExternalLink, FileText, Trash2, MoreVertical, Heart, Smile } from "lucide-react";
+import { Download, Copy, Check, ExternalLink, FileText, Trash2, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { createClient, apiFetch } from "@/lib/supabase/client";
 import type { Message, User, Channel } from "@/types/database";
@@ -13,35 +13,10 @@ interface MessageWithUser extends Message {
   users?: Pick<User, "id" | "role" | "display_name"> | null;
 }
 
+const MESSAGE_PAGE_SIZE = 5;
+
 interface MessageAreaProps {
   channelId: string;
-}
-
-function formatTime(dateString: string) {
-  const date = new Date(dateString);
-  return date.toLocaleTimeString("de-DE", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatDate(dateString: string) {
-  const date = new Date(dateString);
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  if (date.toDateString() === today.toDateString()) {
-    return "Heute";
-  } else if (date.toDateString() === yesterday.toDateString()) {
-    return "Gestern";
-  }
-
-  return date.toLocaleDateString("de-DE", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
 }
 
 function getInitials(name: string | null | undefined) {
@@ -60,91 +35,40 @@ export function MessageArea({ channelId }: MessageAreaProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [reactions, setReactions] = useState<Record<string, { emoji: string; count: number; userReacted: boolean }[]>>({});
-  const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null);
-  const [userRoleNames, setUserRoleNames] = useState<Record<string, { name: string; color: string }>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-  
-  const quickEmojis = ["👍", "❤️", "🔥", "👏", "😂", "🎉"];
-  const PRIMARY_GREEN = "#95BF47";
 
   useEffect(() => {
     const supabase = createClient();
 
     const fetchData = async () => {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setCurrentUserId(user.id);
-        
-        // Load user's favorites
-        const { data: favData } = await supabase
-          .from("user_favorites")
-          .select("message_id")
-          .eq("user_id", user.id);
-        
-        if (favData) {
-          setFavorites(new Set(favData.map(f => f.message_id)));
-        }
-      }
+      // 1) Schnell: Nur Channel + letzte Nachrichten (limit), sofort anzeigen
+      const [channelRes, messagesRes] = await Promise.all([
+        supabase.from("channels").select("id, show_download_button, show_copy_button").eq("id", channelId).single<Channel>(),
+        supabase
+          .from("messages")
+          .select(`id, channel_id, user_id, content, attachment_url, attachment_type, image_bg_color, cta_button_text, cta_button_url, created_at, users(display_name)`)
+          .eq("channel_id", channelId)
+          .order("created_at", { ascending: false })
+          .limit(MESSAGE_PAGE_SIZE)
+          .returns<MessageWithUser[]>(),
+      ]);
 
-      // Check if user is admin
-      try {
-        const response = await apiFetch("/api/user/profile");
-        if (response.ok) {
-          const data = await response.json();
-          setIsAdmin(data.profile?.role === "admin");
-        }
-      } catch (e) {}
-
-      // Fetch channel settings
-      const { data: channelData } = await supabase
-        .from("channels")
-        .select("*")
-        .eq("id", channelId)
-        .single<Channel>();
-      
-      setChannel(channelData);
-
-      // Fetch messages
-      const { data, error } = await supabase
-        .from("messages")
-        .select(`
-          *,
-          users (
-            id,
-            role,
-            display_name
-          )
-        `)
-        .eq("channel_id", channelId)
-        .order("created_at", { ascending: true })
-        .returns<MessageWithUser[]>();
-
-      if (!error && data) {
-        setMessages(data);
-        const userIds = [...new Set((data as MessageWithUser[]).map((m) => m.user_id))];
-        if (userIds.length > 0) {
-          const { data: roleData } = await supabase
-            .from("user_roles")
-            .select("user_id, roles(display_name, color, hierarchy_level)")
-            .in("user_id", userIds);
-          const byUser: Record<string, { name: string; color: string; level: number }> = {};
-          roleData?.forEach((r: any) => {
-            if (!r.roles?.display_name || !r.user_id) return;
-            const level = Number(r.roles.hierarchy_level) || 0;
-            if (!byUser[r.user_id] || level > byUser[r.user_id].level)
-              byUser[r.user_id] = { name: r.roles.display_name, color: r.roles.color || "#95BF47", level };
-          });
-          const map: Record<string, { name: string; color: string }> = {};
-          Object.entries(byUser).forEach(([uid, v]) => { map[uid] = { name: v.name, color: v.color }; });
-          setUserRoleNames(map);
-        }
+      setChannel((channelRes.data ?? null) as Channel | null);
+      if (!messagesRes.error && messagesRes.data) {
+        setMessages([...messagesRes.data].reverse());
       }
       setLoading(false);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setCurrentUserId(user.id);
+      apiFetch("/api/user/profile").then((response) => {
+        if (response.ok) return response.json();
+        return null;
+      }).then((data) => {
+        if (data?.profile?.role === "admin") setIsAdmin(true);
+      }).catch(() => {});
     };
 
     fetchData();
@@ -178,20 +102,12 @@ export function MessageArea({ channelId }: MessageAreaProps) {
           table: "messages",
           filter: `channel_id=eq.${channelId}`,
         },
-        async (payload) => {
+        (payload) => {
           const newMsg = payload.new as Message;
           setMessages((prev) => {
             if (prev.some((m) => m.id === newMsg.id)) return prev;
             return [...prev, { ...newMsg, users: null }];
           });
-          const { data: userData } = await supabase
-            .from("users")
-            .select("id, role, display_name")
-            .eq("id", newMsg.user_id)
-            .single<Pick<User, "id" | "role" | "display_name">>();
-          setMessages((prev) =>
-            prev.map((m) => (m.id === newMsg.id ? { ...m, users: userData } : m))
-          );
         }
       )
       .on(
@@ -262,104 +178,17 @@ export function MessageArea({ channelId }: MessageAreaProps) {
     return content && content !== "📷 Bild" && content !== "📎 Datei";
   };
 
-  const toggleFavorite = async (messageId: string) => {
-    if (!currentUserId) return;
-    
-    const supabase = createClient();
-    const isFavorited = favorites.has(messageId);
-    
-    if (isFavorited) {
-      await supabase
-        .from("user_favorites")
-        .delete()
-        .eq("user_id", currentUserId)
-        .eq("message_id", messageId);
-      
-      setFavorites(prev => {
-        const next = new Set(prev);
-        next.delete(messageId);
-        return next;
-      });
-    } else {
-      await supabase
-        .from("user_favorites")
-        .insert({ user_id: currentUserId, message_id: messageId });
-      
-      setFavorites(prev => new Set([...prev, messageId]));
-    }
-  };
-
-  const addReaction = async (messageId: string, emoji: string) => {
-    if (!currentUserId) return;
-    setShowEmojiPicker(null);
-    
-    const supabase = createClient();
-    const currentReactions = reactions[messageId] || [];
-    const existingReaction = currentReactions.find(r => r.emoji === emoji);
-    
-    if (existingReaction?.userReacted) {
-      await supabase
-        .from("message_reactions")
-        .delete()
-        .eq("message_id", messageId)
-        .eq("user_id", currentUserId)
-        .eq("emoji", emoji);
-    } else {
-      await (supabase as any)
-        .from("message_reactions")
-        .upsert(
-          { message_id: messageId, user_id: currentUserId, emoji },
-          { onConflict: "message_id,user_id,emoji" }
-        );
-      
-      try {
-        const { incrementStat } = await import("@/lib/stats");
-        await incrementStat(currentUserId, "reactions_given");
-      } catch {}
-    }
-    
-    await loadReactions(messageId);
-  };
-
-  const loadReactions = async (messageId: string) => {
-    const supabase = createClient();
-    const { data } = await (supabase as any)
-      .from("message_reactions")
-      .select("emoji, user_id")
-      .eq("message_id", messageId);
-    
-    if (data) {
-      const grouped: Record<string, { count: number; userReacted: boolean }> = {};
-      (data as Array<{ emoji: string; user_id: string }>).forEach((r) => {
-        if (!grouped[r.emoji]) grouped[r.emoji] = { count: 0, userReacted: false };
-        grouped[r.emoji].count++;
-        if (r.user_id === currentUserId) grouped[r.emoji].userReacted = true;
-      });
-      
-      setReactions(prev => ({
-        ...prev,
-        [messageId]: Object.entries(grouped).map(([emoji, info]) => ({ emoji, ...info }))
-      }));
-    }
-  };
-
   if (loading) {
     return (
-      <div className="flex-1 p-4 md:p-6 space-y-4 md:space-y-6">
-        {[...Array(5)].map((_, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="flex gap-3 md:gap-4"
-          >
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-secondary animate-pulse flex-shrink-0" />
+      <div className="flex-1 p-4 md:p-6 space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex gap-3">
+            <div className="w-8 h-8 rounded-full bg-secondary/60 animate-pulse flex-shrink-0" />
             <div className="space-y-2 flex-1 min-w-0">
-              <div className="h-4 w-24 md:w-28 bg-secondary animate-pulse rounded-lg" />
-              <div className="h-4 w-4/5 md:w-2/3 bg-secondary animate-pulse rounded-lg" />
+              <div className="h-3 w-20 bg-secondary/60 animate-pulse rounded" />
+              <div className="h-4 w-3/4 bg-secondary/60 animate-pulse rounded" />
             </div>
-          </motion.div>
+          </div>
         ))}
       </div>
     );
@@ -367,56 +196,19 @@ export function MessageArea({ channelId }: MessageAreaProps) {
 
   if (messages.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center"
-        >
-          <div className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-4 rounded-2xl bg-primary/10 flex items-center justify-center">
-            <span className="text-3xl md:text-4xl">💬</span>
-          </div>
-          <p className="text-base md:text-lg font-medium text-foreground">
-            Noch keine Nachrichten
-          </p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Hier erscheinen bald neue Inhalte!
-          </p>
-        </motion.div>
+      <div className="flex-1 flex items-center justify-center p-4 text-center">
+        <p className="text-foreground font-medium">Noch keine Nachrichten</p>
       </div>
     );
   }
 
-  let lastDate = "";
-
   return (
     <ScrollArea className="flex-1" ref={scrollRef}>
-      <div className="p-2 md:p-4 space-y-2 md:space-y-2.5">
+      <div className="p-2 md:p-4 space-y-2">
         <AnimatePresence mode="popLayout">
-          {messages.map((message) => {
-            const messageDate = formatDate(message.created_at);
-            const showDateDivider = messageDate !== lastDate;
-            lastDate = messageDate;
-
-            return (
-              <motion.div
-                key={message.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-              >
-                {showDateDivider && (
-                  <div className="flex items-center gap-2 my-2 md:my-3">
-                    <div className="flex-1 h-px bg-border/50" />
-                    <span className="text-[10px] text-muted-foreground font-medium px-2 py-0.5 rounded-full bg-secondary whitespace-nowrap">
-                      {messageDate}
-                    </span>
-                    <div className="flex-1 h-px bg-border/50" />
-                  </div>
-                )}
-
-                <motion.div
+          {messages.map((message) => (
+              <div key={message.id}>
+                <div
                   className={`p-2 md:p-2.5 group relative rounded-xl border ${
                     message.user_id === currentUserId
                       ? "ml-6 md:ml-12 border-primary bg-card"
@@ -437,25 +229,11 @@ export function MessageArea({ channelId }: MessageAreaProps) {
                     </Link>
 
                     <div className={`flex-1 min-w-0 ${message.user_id === currentUserId ? "text-right" : ""}`}>
-                      {/* Header */}
-                      <div className={`flex flex-wrap items-center gap-1 md:gap-1.5 mb-0.5 md:mb-1 ${message.user_id === currentUserId ? "justify-end" : ""}`}>
-                        <Link href={`/user/${message.user_id}`} className="font-medium text-xs truncate max-w-[100px] sm:max-w-none hover:underline">
+                      {/* Header – nur Name, keine Uhrzeit/Rollen */}
+                      <div className={`flex items-center gap-1 mb-0.5 ${message.user_id === currentUserId ? "justify-end" : ""}`}>
+                        <Link href={`/user/${message.user_id}`} className="font-medium text-xs truncate hover:underline">
                           {message.users?.display_name || "Unbekannt"}
                         </Link>
-                        {(userRoleNames[message.user_id] || message.users?.role === "admin") && (
-                          <span
-                            className="text-[8px] md:text-[9px] px-1 py-0.5 rounded font-semibold uppercase tracking-wide"
-                            style={{
-                              backgroundColor: (userRoleNames[message.user_id]?.color || "#95BF47") + "20",
-                              color: userRoleNames[message.user_id]?.color || "#95BF47",
-                            }}
-                          >
-                            {message.users?.role === "admin" ? "Team" : (userRoleNames[message.user_id]?.name || "Mitglied")}
-                          </span>
-                        )}
-                        <span className="text-[9px] md:text-[10px] text-muted-foreground">
-                          {formatTime(message.created_at)}
-                        </span>
                       </div>
 
                       {/* Content */}
@@ -523,83 +301,18 @@ export function MessageArea({ channelId }: MessageAreaProps) {
                         </div>
                       )}
 
-                      {/* Reactions */}
-                      {reactions[message.id]?.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {reactions[message.id].map(r => (
-                            <button
-                              key={r.emoji}
-                              onClick={() => addReaction(message.id, r.emoji)}
-                              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-colors ${
-                                r.userReacted ? "bg-primary/20 text-primary" : "bg-muted hover:bg-muted/80"
-                              }`}
-                            >
-                              <span>{r.emoji}</span>
-                              <span>{r.count}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Action Buttons */}
-                      <div className="flex items-center gap-2 mt-2 md:mt-3 flex-wrap">
-                        {/* Emoji Reaction */}
-                        <div className="relative">
-                            <button
-                              onClick={() => setShowEmojiPicker(showEmojiPicker === message.id ? null : message.id)}
-                              className="inline-flex items-center gap-1 text-xs transition-colors min-h-[28px] px-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
-                            >
-                            <Smile className="w-3.5 h-3.5" />
-                          </button>
-                          
-                          <AnimatePresence>
-                            {showEmojiPicker === message.id && (
-                              <motion.div
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                className="absolute bottom-full mb-1 left-0 content-card p-2 shadow-xl z-20"
-                              >
-                                <div className="flex gap-1">
-                                  {quickEmojis.map(emoji => (
-                                    <button
-                                      key={emoji}
-                                      onClick={() => addReaction(message.id, emoji)}
-                                      className="w-8 h-8 text-lg hover:bg-muted rounded-lg transition-colors"
-                                    >
-                                      {emoji}
-                                    </button>
-                                  ))}
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-
-                        {/* Copy text */}
-                        {hasRealContent(message.content) && channel?.show_copy_button && (
+                      {/* Nur Kopieren wenn Channel es erlaubt */}
+                      {hasRealContent(message.content) && channel?.show_copy_button && (
+                        <div className="mt-2">
                           <button
                             onClick={() => handleCopy(message.id, message.content)}
-                            className="inline-flex items-center gap-1 text-xs transition-colors min-h-[28px] px-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                           >
-                            {copiedId === message.id ? (
-                              <><Check className="w-3.5 h-3.5 text-green-500" />Kopiert</>
-                            ) : (
-                              <><Copy className="w-3.5 h-3.5" />Kopieren</>
-                            )}
+                            {copiedId === message.id ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                            {copiedId === message.id ? "Kopiert" : "Kopieren"}
                           </button>
-                        )}
-
-                        {/* Favorite */}
-                        <button
-                          onClick={() => toggleFavorite(message.id)}
-                          className={`inline-flex items-center gap-1 text-xs transition-colors min-h-[28px] px-1.5 rounded-lg ${
-                            favorites.has(message.id) ? "text-red-500 bg-red-500/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                          }`}
-                        >
-                          <Heart className={`w-3.5 h-3.5 ${favorites.has(message.id) ? "fill-current" : ""}`} />
-                        </button>
-                      </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Delete Menu (Admin only) */}
@@ -633,10 +346,9 @@ export function MessageArea({ channelId }: MessageAreaProps) {
                       </div>
                     )}
                   </div>
-                </motion.div>
-              </motion.div>
-            );
-          })}
+                </div>
+              </div>
+          ))}
         </AnimatePresence>
         <div ref={bottomRef} />
       </div>

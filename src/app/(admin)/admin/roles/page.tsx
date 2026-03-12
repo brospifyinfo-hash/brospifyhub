@@ -1,5 +1,5 @@
-import { RoleManager } from "@/components/admin/role-manager";
+import { redirect } from "next/navigation";
 
-export default function RolesPage() {
-  return <RoleManager />;
+export default function AdminRolesPage() {
+  redirect("/admin/channels");
 }

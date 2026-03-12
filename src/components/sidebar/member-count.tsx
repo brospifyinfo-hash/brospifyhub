@@ -10,8 +10,10 @@ export function MemberCount() {
 
   useEffect(() => {
     const supabase = createClient();
-
-    const fetchData = async () => {
+    const t = setTimeout(() => {
+      fetchData();
+    }, 300);
+    async function fetchData() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
@@ -32,9 +34,7 @@ export function MemberCount() {
       if (settingsData?.value) {
         setBonus(parseInt(settingsData.value) || 0);
       }
-    };
-
-    fetchData();
+    }
 
     const channel = supabase
       .channel("member-count")
@@ -44,6 +44,7 @@ export function MemberCount() {
     channel.subscribe();
 
     return () => {
+      clearTimeout(t);
       channel.unsubscribe();
     };
   }, []);

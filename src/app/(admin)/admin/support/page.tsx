@@ -1,5 +1,5 @@
-import { SupportInbox } from "@/components/admin/support-inbox";
+import { redirect } from "next/navigation";
 
 export default function AdminSupportPage() {
-  return <SupportInbox />;
+  redirect("/admin/channels");
 }

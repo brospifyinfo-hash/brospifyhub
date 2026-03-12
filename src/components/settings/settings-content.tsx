@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { User, Save, CheckCircle, AlertCircle } from "lucide-react";
+import { User, Save, CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/supabase/client";
@@ -26,6 +26,7 @@ const itemVariants = {
 export function SettingsContent({ profile: initialProfile }: Props) {
   const [profile, setProfile] = useState<UserProfile | null>(initialProfile);
   const [profileLoading, setProfileLoading] = useState(!initialProfile);
+  const [profileError, setProfileError] = useState(false);
   const [displayName, setDisplayName] = useState(initialProfile?.display_name || "");
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -36,18 +37,23 @@ export function SettingsContent({ profile: initialProfile }: Props) {
     if (initialProfile) return;
     let cancelled = false;
     (async () => {
-      const res = await apiFetch("/api/user/profile");
-      if (cancelled) return;
-      if (res.status === 401) {
-        router.replace("/login");
-        return;
+      try {
+        const res = await apiFetch("/api/user/profile");
+        if (cancelled) return;
+        if (res.status === 401) {
+          router.replace("/login");
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        if (data?.profile) {
+          setProfile(data.profile);
+          setDisplayName(data.profile.display_name || "");
+        }
+      } catch {
+        if (!cancelled) setProfileError(true);
+      } finally {
+        if (!cancelled) setProfileLoading(false);
       }
-      const data = await res.json();
-      if (data?.profile) {
-        setProfile(data.profile);
-        setDisplayName(data.profile.display_name || "");
-      }
-      setProfileLoading(false);
     })();
     return () => { cancelled = true; };
   }, [initialProfile, router]);
@@ -87,10 +93,42 @@ export function SettingsContent({ profile: initialProfile }: Props) {
     setSaving(false);
   };
 
-  if (profileLoading) {
+  const retryProfile = () => {
+    setProfileError(false);
+    setProfileLoading(true);
+    apiFetch("/api/user/profile")
+      .then((res) => res.json().catch(() => ({})))
+      .then((data) => {
+        if (data?.profile) {
+          setProfile(data.profile);
+          setDisplayName(data.profile.display_name || "");
+        }
+      })
+      .finally(() => setProfileLoading(false));
+  };
+
+  if (profileLoading && !profileError) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-muted-foreground">Profil wird geladen…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (profileError) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-4">
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-6 text-center max-w-md">
+          <p className="font-medium text-destructive mb-2">Profil konnte nicht geladen werden</p>
+          <p className="text-sm text-muted-foreground mb-4">Bitte prüfe deine Verbindung und versuche es erneut.</p>
+          <Button variant="outline" onClick={retryProfile} className="gap-2">
+            <RefreshCw className="w-4 h-4" />
+            Erneut versuchen
+          </Button>
+        </div>
       </div>
     );
   }

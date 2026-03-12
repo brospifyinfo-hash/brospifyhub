@@ -2,27 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Shield, ArrowLeft, Users, MessageSquare, Calendar, Smile, CheckSquare, LayoutDashboard, Key, Ticket, Tag, Settings, FolderOpen, Laptop, Crown, UserCog, Activity, Package } from "lucide-react";
+import { Menu, X, Shield, ArrowLeft, MessageSquare, Settings, FolderOpen } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navItems = [
-  { href: "/admin", icon: LayoutDashboard, label: "Übersicht" },
-  { href: "/admin/tickets", icon: Ticket, label: "Support-Tickets" },
-  { href: "/admin/ticket-categories", icon: Tag, label: "Ticket-Kategorien" },
-  { href: "/admin/licenses", icon: Key, label: "Lizenz-Management" },
-  { href: "/admin/products", icon: Package, label: "Produkt-Manager" },
-  { href: "/admin/roles", icon: Crown, label: "Rollen-Manager" },
-  { href: "/admin/user-roles", icon: UserCog, label: "Benutzer & Rollen" },
-  { href: "/admin/users", icon: Users, label: "User-Zentrale" },
-  { href: "/admin/devices", icon: Laptop, label: "Geräte-Manager" },
   { href: "/admin/channels", icon: MessageSquare, label: "Channel-Manager" },
   { href: "/admin/categories", icon: FolderOpen, label: "Kategorien" },
-  { href: "/admin/approval", icon: CheckSquare, label: "Freigaben" },
-  { href: "/admin/scheduler", icon: Calendar, label: "Scheduler" },
-  { href: "/admin/activity", icon: Activity, label: "Aktivitätslog" },
   { href: "/admin/settings", icon: Settings, label: "App-Einstellungen" },
-  { href: "/admin/emojis", icon: Smile, label: "Emojis" },
 ];
 
 export function MobileAdminNav() {
@@ -85,7 +72,7 @@ export function MobileAdminNav() {
             >
               <nav className="p-3 space-y-1">
                 {navItems.map((item) => {
-                  const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
+                  const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
                   return (
                     <Link key={item.href} href={item.href}>
                       <div className={`flex items-center gap-3 px-3 py-3 min-h-[44px] rounded-xl text-sm font-medium transition-colors ${

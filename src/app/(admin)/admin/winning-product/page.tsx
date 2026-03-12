@@ -1,5 +1,5 @@
-import { WinningProductEditor } from "@/components/admin/winning-product-editor";
+import { redirect } from "next/navigation";
 
-export default function WinningProductAdminPage() {
-  return <WinningProductEditor />;
+export default function AdminWinningProductPage() {
+  redirect("/admin/channels");
 }

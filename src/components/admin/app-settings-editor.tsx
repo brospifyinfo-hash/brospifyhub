@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Settings, Users, Save, Loader2, ImagePlus, X } from "lucide-react";
+import { Settings, Users, Save, Loader2, ImagePlus, X, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,18 +19,22 @@ const SETTING_KEYS = [
   "max_upload_size_mb",
 ] as const;
 
+const DEFAULT_SETTINGS: Record<string, string> = {
+  app_logo_url: "",
+  app_name: "Brospify Hub",
+  app_primary_color: "#95BF47",
+  welcome_title: "Willkommen zurück!",
+  welcome_text: "Schön, dass du da bist.",
+  fake_member_bonus: "0",
+  meta_title_suffix: " - Brospify Hub",
+  max_upload_size_mb: "10",
+};
+
 export function AppSettingsEditor() {
-  const [settings, setSettings] = useState<Record<string, string>>({
-    app_logo_url: "",
-    app_name: "Brospify Hub",
-    app_primary_color: "#95BF47",
-    welcome_title: "Willkommen zurück!",
-    welcome_text: "Schön, dass du da bist.",
-    fake_member_bonus: "0",
-    meta_title_suffix: " - Brospify Hub",
-    max_upload_size_mb: "10",
-  });
+  const [settings, setSettings] = useState<Record<string, string>>(DEFAULT_SETTINGS);
   const [realMemberCount, setRealMemberCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [logoDrag, setLogoDrag] = useState(false);
@@ -38,20 +42,32 @@ export function AppSettingsEditor() {
 
   const supabase = createClient();
 
-  useEffect(() => {
-    const load = async () => {
-      const { data } = await supabase.from("app_settings").select("key, value");
-      const map: Record<string, string> = { ...settings };
+  const load = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const client = createClient();
+      const { data, error } = await client.from("app_settings").select("key, value");
+      if (error) throw new Error(error.message);
+      const map: Record<string, string> = { ...DEFAULT_SETTINGS };
       data?.forEach((row) => {
         if (row.value != null) map[row.key] = String(row.value);
       });
       setSettings(map);
 
-      const { count } = await supabase.from("users").select("*", { count: "exact", head: true });
-      if (count != null) setRealMemberCount(count);
-    };
-    load();
+      const { count, error: usersError } = await client.from("users").select("*", { count: "exact", head: true });
+      if (!usersError && count != null) setRealMemberCount(count);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Einstellungen konnten nicht geladen werden.";
+      setLoadError(message);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const saveSetting = useCallback(
     async (key: string, value: string) => {
@@ -118,6 +134,34 @@ export function AppSettingsEditor() {
   }, [saveSetting]);
 
   const displayCount = realMemberCount + (parseInt(settings.fake_member_bonus || "0") || 0);
+
+  if (isLoading && !loadError) {
+    return (
+      <div className="flex-1 flex items-center justify-center min-h-[40vh]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-10 h-10 text-primary animate-spin" />
+          <p className="text-sm text-muted-foreground">Einstellungen werden geladen…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex-1 overflow-auto">
+        <div className="max-w-3xl mx-auto p-4 md:p-8">
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-6 text-center">
+            <p className="font-medium text-destructive mb-2">Einstellungen konnten nicht geladen werden</p>
+            <p className="text-sm text-muted-foreground mb-4">{loadError}</p>
+            <Button onClick={load} variant="outline" className="gap-2">
+              <RefreshCw className="w-4 h-4" />
+              Erneut versuchen
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 overflow-auto">

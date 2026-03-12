@@ -1,9 +1,5 @@
-import { DeviceManager } from "@/components/admin/device-manager";
+import { redirect } from "next/navigation";
 
 export default function AdminDevicesPage() {
-  return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <DeviceManager />
-    </div>
-  );
+  redirect("/admin/channels");
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Headphones, ArrowRight, Package, Ticket, CreditCard } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import type { User, Product } from "@/types/database";
 import { createClient, apiFetch } from "@/lib/supabase/client";
 
@@ -14,6 +15,7 @@ interface Props {
 export function DashboardContent({ profile: initialProfile }: Props) {
   const [profile, setProfile] = useState<User | null>(initialProfile);
   const [profileLoading, setProfileLoading] = useState(!initialProfile);
+  const [profileError, setProfileError] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [welcomeTitle, setWelcomeTitle] = useState("Willkommen zurück!");
   const [welcomeText, setWelcomeText] = useState("Schön, dass du da bist.");
@@ -24,21 +26,26 @@ export function DashboardContent({ profile: initialProfile }: Props) {
     if (initialProfile) return;
     let cancelled = false;
     (async () => {
-      const res = await apiFetch("/api/user/profile");
-      if (cancelled) return;
-      if (res.status === 401) {
-        router.replace("/login");
-        return;
-      }
-      const data = await res.json();
-      if (data?.profile) {
-        setProfile(data.profile);
-        if (!data.profile.display_name) {
-          router.replace("/welcome");
+      try {
+        const res = await apiFetch("/api/user/profile");
+        if (cancelled) return;
+        if (res.status === 401) {
+          router.replace("/login");
           return;
         }
+        const data = await res.json().catch(() => ({}));
+        if (data?.profile) {
+          setProfile(data.profile);
+          if (!data.profile.display_name) {
+            router.replace("/welcome");
+            return;
+          }
+        }
+      } catch {
+        if (!cancelled) setProfileError(true);
+      } finally {
+        if (!cancelled) setProfileLoading(false);
       }
-      setProfileLoading(false);
     })();
     return () => { cancelled = true; };
   }, [initialProfile, router]);
@@ -65,10 +72,41 @@ export function DashboardContent({ profile: initialProfile }: Props) {
     load();
   }, [profile?.id]);
 
-  if (profileLoading) {
+  if (profileLoading && !profileError) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-muted-foreground">Profil wird geladen…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (profileError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-6 text-center max-w-md">
+          <p className="font-medium text-destructive mb-2">Profil konnte nicht geladen werden</p>
+          <p className="text-sm text-muted-foreground mb-4">Bitte prüfe deine Verbindung und versuche es erneut.</p>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setProfileError(false);
+              setProfileLoading(true);
+              apiFetch("/api/user/profile")
+                .then((res) => res.json().catch(() => ({})))
+                .then((data) => {
+                  if (data?.profile) setProfile(data.profile);
+                  else setProfileError(true);
+                })
+                .catch(() => setProfileError(true))
+                .finally(() => setProfileLoading(false));
+            }}
+          >
+            Erneut versuchen
+          </Button>
+        </div>
       </div>
     );
   }

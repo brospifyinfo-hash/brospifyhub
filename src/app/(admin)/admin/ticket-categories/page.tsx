@@ -1,9 +1,5 @@
-import { TicketCategoryManager } from "@/components/admin/ticket-category-manager";
+import { redirect } from "next/navigation";
 
 export default function AdminTicketCategoriesPage() {
-  return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <TicketCategoryManager />
-    </div>
-  );
+  redirect("/admin/channels");
 }

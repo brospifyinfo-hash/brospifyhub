@@ -1,5 +1,5 @@
-import { TicketsPage } from "@/components/tickets/tickets-page";
+import { redirect } from "next/navigation";
 
-export default function UserTicketsPage() {
-  return <TicketsPage isAdmin={false} />;
+export default function TicketsPage() {
+  redirect("/dashboard");
 }

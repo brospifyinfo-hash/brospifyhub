@@ -1,5 +1,5 @@
-import { SupportChat } from "@/components/support/support-chat";
+import { redirect } from "next/navigation";
 
 export default function SupportPage() {
-  return <SupportChat />;
+  redirect("/dashboard");
 }

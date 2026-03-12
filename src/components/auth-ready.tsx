@@ -23,15 +23,19 @@ export function AuthReady({ children }: { children: React.ReactNode }) {
     const supabase = createClient();
     let cancelled = false;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (cancelled) return;
-      if (session) setReady(true);
-      else router.replace("/login");
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (cancelled) return;
+        if (session) setReady(true);
+        else router.replace("/login");
+      })
+      .catch(() => {
+        if (!cancelled) setReady(true);
+      });
 
     const t = setTimeout(() => {
       if (!cancelled) setReady(true);
-    }, 400);
+    }, 80);
     return () => {
       cancelled = true;
       clearTimeout(t);

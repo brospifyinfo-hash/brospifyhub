@@ -1,9 +1,5 @@
-import { ActivityLogViewer } from "@/components/admin/activity-log";
+import { redirect } from "next/navigation";
 
-export default function ActivityPage() {
-  return <ActivityLogViewer />;
+export default function AdminActivityPage() {
+  redirect("/admin/channels");
 }
-
-export const metadata = {
-  title: "Aktivitätsprotokoll - Admin - Brospify Hub",
-};

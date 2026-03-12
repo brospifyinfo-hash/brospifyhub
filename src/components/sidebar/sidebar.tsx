@@ -3,18 +3,12 @@
 import { useEffect, useState } from "react";
 import { 
   LayoutDashboard, 
-  MessageCircle, 
-  Trophy,
-  Ticket,
-  Settings,
-  Users,
   ChevronDown,
   ChevronRight,
-  Heart,
   Hash,
   Star,
   FolderOpen,
-  Package
+  Settings
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -25,36 +19,8 @@ import { createClient, apiFetch } from "@/lib/supabase/client";
 import type { Channel, ChannelCategory } from "@/types/database";
 
 const navItems = [
-  { 
-    href: "/dashboard", 
-    icon: LayoutDashboard, 
-    label: "Dashboard" 
-  },
-  { 
-    href: "/favorites", 
-    icon: Heart, 
-    label: "Gespeichert" 
-  },
-  { 
-    href: "/tickets", 
-    icon: Ticket, 
-    label: "Support-Tickets" 
-  },
-  { 
-    href: "/channels/winning-product", 
-    icon: Trophy, 
-    label: "Winning Product" 
-  },
-  { 
-    href: "/products", 
-    icon: Package, 
-    label: "Produkte" 
-  },
-  { 
-    href: "/settings", 
-    icon: Settings, 
-    label: "Einstellungen" 
-  },
+  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/settings", icon: Settings, label: "Einstellungen" },
 ];
 
 export function Sidebar() {
@@ -63,13 +29,16 @@ export function Sidebar() {
   const [appName, setAppName] = useState("Brospify Hub");
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.from("app_settings").select("key, value").in("key", ["app_logo_url", "app_name"]).then(({ data }) => {
-      data?.forEach((row) => {
-        if (row.key === "app_logo_url" && row.value) setAppLogo(row.value);
-        if (row.key === "app_name" && row.value) setAppName(row.value);
+    const t = setTimeout(() => {
+      const supabase = createClient();
+      supabase.from("app_settings").select("key, value").in("key", ["app_logo_url", "app_name"]).then(({ data }) => {
+        data?.forEach((row) => {
+          if (row.key === "app_logo_url" && row.value) setAppLogo(row.value);
+          if (row.key === "app_name" && row.value) setAppName(row.value);
+        });
       });
-    });
+    }, 50);
+    return () => clearTimeout(t);
   }, []);
 
   return (
@@ -144,6 +113,7 @@ function ChannelListContent() {
 
   useEffect(() => {
     const supabase = createClient();
+    let mounted = true;
 
     const fetchData = async () => {
       try {
@@ -172,7 +142,9 @@ function ChannelListContent() {
       }
     };
 
-    fetchData();
+    const t = setTimeout(() => {
+      if (mounted) fetchData();
+    }, 80);
 
     const channel = supabase
       .channel("channels-changes")
@@ -186,6 +158,8 @@ function ChannelListContent() {
     channel.subscribe();
 
     return () => {
+      mounted = false;
+      clearTimeout(t);
       channel.unsubscribe();
     };
   }, []);

@@ -12,24 +12,28 @@ export function AdminAuthReady({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     const init = async () => {
-      const res = await apiFetch("/api/user/profile");
-      if (cancelled) return;
-      if (res.status === 401) {
-        router.replace("/login");
-        return;
+      try {
+        const res = await apiFetch("/api/user/profile");
+        if (cancelled) return;
+        if (res.status === 401) {
+          router.replace("/login");
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        if (data?.profile?.role !== "admin") {
+          router.replace("/dashboard");
+          return;
+        }
+        if (!cancelled) setReady(true);
+      } catch {
+        if (!cancelled) setReady(true);
       }
-      const data = await res.json();
-      if (data?.profile?.role !== "admin") {
-        router.replace("/dashboard");
-        return;
-      }
-      setReady(true);
     };
 
     init();
     const t = setTimeout(() => {
       if (!cancelled) setReady(true);
-    }, 5000);
+    }, 600);
     return () => {
       cancelled = true;
       clearTimeout(t);

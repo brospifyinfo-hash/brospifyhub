@@ -96,7 +96,7 @@ function MobileSidebarContent() {
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { 
-  LayoutDashboard, Heart, Ticket, Trophy, Hash, Star, Package, Settings,
+  LayoutDashboard, Hash, Star, Settings,
   FolderOpen, ChevronDown, ChevronRight, Sun, Moon, Monitor
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -106,10 +106,6 @@ import { UserPanel } from "./user-panel";
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/favorites", icon: Heart, label: "Gespeichert" },
-  { href: "/tickets", icon: Ticket, label: "Support-Tickets" },
-  { href: "/channels/winning-product", icon: Trophy, label: "Winning Product" },
-  { href: "/products", icon: Package, label: "Produkte" },
   { href: "/settings", icon: Settings, label: "Einstellungen" },
 ];
 

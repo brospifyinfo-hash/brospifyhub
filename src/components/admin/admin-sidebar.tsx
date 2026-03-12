@@ -2,29 +2,12 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { 
-  Users, MessageSquare, Calendar, Smile, CheckSquare, LayoutDashboard, 
-  ArrowLeft, Shield, Key, Ticket, Trophy, Settings, FolderOpen, 
-  Laptop, Crown, UserCog, Activity, Package, ShoppingBag, Tag
-} from "lucide-react";
+import { MessageSquare, ArrowLeft, Shield, Settings, FolderOpen } from "lucide-react";
 
 const navItems = [
-  { href: "/admin", icon: LayoutDashboard, label: "Übersicht" },
-  { href: "/admin/tickets", icon: Ticket, label: "Support-Tickets" },
-  { href: "/admin/ticket-categories", icon: Tag, label: "Ticket-Kategorien" },
-  { href: "/admin/licenses", icon: Key, label: "Lizenz-Management" },
-  { href: "/admin/products", icon: Package, label: "Produkt-Manager" },
-  { href: "/admin/roles", icon: Crown, label: "Rollen-Manager" },
-  { href: "/admin/user-roles", icon: UserCog, label: "Benutzer & Rollen" },
-  { href: "/admin/users", icon: Users, label: "User-Zentrale" },
-  { href: "/admin/devices", icon: Laptop, label: "Geräte-Manager" },
   { href: "/admin/channels", icon: MessageSquare, label: "Channel-Manager" },
   { href: "/admin/categories", icon: FolderOpen, label: "Kategorien" },
-  { href: "/admin/approval", icon: CheckSquare, label: "Freigaben" },
-  { href: "/admin/scheduler", icon: Calendar, label: "Scheduler" },
-  { href: "/admin/activity", icon: Activity, label: "Aktivitätslog" },
   { href: "/admin/settings", icon: Settings, label: "App-Einstellungen" },
-  { href: "/admin/emojis", icon: Smile, label: "Emojis" },
 ];
 
 export function AdminSidebar() {
@@ -46,7 +29,7 @@ export function AdminSidebar() {
 
       <nav className="flex-1 p-3 space-y-1 overflow-auto">
         {navItems.map((item) => {
-          const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
+          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link key={item.href} href={item.href}>
               <motion.div whileHover={{ x: 4 }} className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${isActive ? "text-sidebar-accent-foreground" : "text-sidebar-foreground hover:text-sidebar-accent-foreground"}`}>
